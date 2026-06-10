@@ -72,3 +72,49 @@ def compute_atr(df, window=ATR_WINDOW):
 
 def compute_indicators(price_data):
     processed = {}
+    for ticker, df in price_data.items():
+        d = df.copy()
+        d[f"highest_close_{BREAKOUT_WINDOW}"] = (
+            d["close"].shift(1).rolling(BREAKOUT_WINDOW).max()
+        )
+        d[f"vol_ma_{BREAKOUT_WINDOW}"] = d["volume"].rolling(BREAKOUT_WINDOW).mean()
+        d[f"atr_{ATR_WINDOW}"]         = compute_atr(d, ATR_WINDOW)
+        d["atr_pct"]                   = d[f"atr_{ATR_WINDOW}"] / d["close"]
+        d.dropna(inplace=True)
+        if len(d) > 0:
+            processed[ticker] = d
+    print(f"✅ 지표 계산 완료 | {len(processed)}개 종목")
+    return processed
+
+
+def get_market_filter():
+    end   = datetime.now(ET)
+    start = end - timedelta(days=300)
+
+    spy_data = _fetch_bars(["SPY"], start, end)
+
+    if not spy_data:
+        print("⚠️ SPY 데이터 없음 — 시장 필터 비활성화")
+        return {"market_ok": True, "spy_price": 0, "spy_ma": 0, "vix": 0, "spy_ok": True, "vix_ok": True}
+
+    spy_close = spy_data["SPY"]["close"]
+    spy_ma    = spy_close.rolling(SPY_MA_WINDOW).mean()
+    spy_ok    = bool(spy_close.iloc[-1] > spy_ma.iloc[-1])
+
+    # ^VIX는 Alpaca 미지원 → VIXY ETF로 근사
+    vix_data = _fetch_bars(["VIXY"], start, end)
+    vix_val  = 0.0
+    vix_ok   = True
+    if vix_data and "VIXY" in vix_data:
+        vix_close = vix_data["VIXY"]["close"]
+        vix_val   = float(vix_close.iloc[-1])
+        vix_ok    = vix_val < (VIX_THRESHOLD / 3)
+
+    return {
+        "market_ok" : spy_ok and vix_ok,
+        "spy_price" : round(float(spy_close.iloc[-1]), 2),
+        "spy_ma"    : round(float(spy_ma.iloc[-1]), 2),
+        "vix"       : round(vix_val, 2),
+        "spy_ok"    : spy_ok,
+        "vix_ok"    : vix_ok,
+    }
