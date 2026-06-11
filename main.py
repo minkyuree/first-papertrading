@@ -4,7 +4,7 @@ from trader.data import fetch_price_data, compute_indicators, get_market_filter
 from trader.signals import scan_buy_signals
 from trader.orders import get_positions, check_trailing_stops, execute_sells, execute_buys
 
-DRY_RUN = True   # GitHub Actions에서 False로 바꾸면 실제 paper trading 주문 실행
+DRY_RUN = False   # GitHub Actions에서 False로 바꾸면 실제 paper trading 주문 실행
 
 
 def main():
