@@ -27,6 +27,7 @@ def _fetch_bars(symbols, start, end):
         start=start,
         end=end,
         adjustment="all",
+        feed="iex", 
     )
     bars = data_client.get_stock_bars(req).df
     if bars.empty:
